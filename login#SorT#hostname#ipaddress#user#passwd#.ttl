@@ -6,33 +6,38 @@ TTINI = "teraterm.ini"
 strsplit param1 '#'
 
 ;parsed characters
-HOSTNAME = groupmatchstr2
-HOSTADDR = groupmatchstr3
-USERNAME = groupmatchstr4
-PASSWORD = groupmatchstr5
-ENABLEPW = groupmatchstr6
+PROTOCOL = groupmatchstr2
+HOSTNAME = groupmatchstr3
+HOSTADDR = groupmatchstr4
+USERNAME = groupmatchstr5
+PASSWORD = groupmatchstr6
+ENABLEPW = groupmatchstr7
 
 getdir CurDir
 
-;; build command
-COMMAND = HOSTADDR 
-strconcat COMMAND ':23 /nossh /T=1'
-strconcat COMMAND ' /F='
-strconcat COMMAND CurDir
-strconcat COMMAND '\'
-strconcat COMMAND TTINI
- 
+;; building connect
+if PROTOCOL=Tn then
+    call Telnet_Command
+elseif PROTOCOL=S1 then
+    call SSH1_Command
+elseif PROTOCOL=S2 then
+    call SSH2_Command
+else
+    goto error
+endif
+
 ;; connect
 connect COMMAND
  
 ;; Login
-wait 'login:' 'Username:' 
-sendln USERNAME 
-sendln PASSWORD
-sendln 'enable'
-sendln ENABLEPW
+if PROTOCOL=Tn then
+    call Login
+endif
 
-wait '#'
+;; Enable
+call Enable
+
+call Compare_Hostname
 
 call Logging
 
@@ -57,3 +62,75 @@ logopen Logfile 0 1 0
 
 return
 ;---------------------------------------------------------------
+;---------------------------------------------------------------
+:Telnet_Command
+;; build command
+COMMAND = HOSTADDR 
+strconcat COMMAND ' /nossh /T=1'
+strconcat COMMAND ' /F='
+strconcat COMMAND CurDir
+strconcat COMMAND '\'
+strconcat COMMAND TTINI
+return
+
+:Login
+wait 'login:' 'Username:' 
+sendln USERNAME 
+sendln PASSWORD
+return
+;---------------------------------------------------------------
+:SSH1_Command
+;; build command
+COMMAND = HOSTADDR 
+strconcat COMMAND '/ssh '
+strconcat COMMAND '/1 '
+strconcat COMMAND '/auth=password '
+strconcat COMMAND '/user='
+strconcat COMMAND USERNAME
+strconcat COMMAND '/passwd='
+strconcat COMMAND PASSWORD
+strconcat COMMAND ' /F='
+strconcat COMMAND CurDir
+strconcat COMMAND '\'
+strconcat COMMAND TTINI
+return
+;---------------------------------------------------------------
+:SSH2_Command
+;; build command
+COMMAND = HOSTADDR 
+strconcat COMMAND '/ssh '
+strconcat COMMAND '/2 '
+strconcat COMMAND '/auth=password '
+strconcat COMMAND '/user='
+strconcat COMMAND USERNAME
+strconcat COMMAND '/passwd='
+strconcat COMMAND PASSWORD
+strconcat COMMAND ' /F='
+strconcat COMMAND CurDir
+strconcat COMMAND '\'
+strconcat COMMAND TTINI
+return
+;---------------------------------------------------------------
+:Compare_Hostname
+sendln '! compare'
+wait '#'
+ if result = 0  goto error
+sendln ''
+sendln ''
+wait '#'
+strmatch inputstr Hostname
+if result=0 then
+    yesnobox "プロンプトとホスト名が一致しませんでした。続けますか？" Hostname
+    if result = 0 end
+endif
+;---------------------------------------------------------------
+:Enable
+wait HOSTNAME
+sendln 'enable'
+sendln ENABLEPW
+return
+;---------------------------------------------------------------
+;---------------------------------------------------------------
+:error
+messagebox 'ERROR' 'ERROR'
+end
