@@ -1,0 +1,59 @@
+;============================================= 
+TTINI = "teraterm.ini"
+;============================================= 
+
+;parse filename with '#'
+strsplit param1 '#'
+
+;parsed characters
+HOSTNAME = groupmatchstr2
+HOSTADDR = groupmatchstr3
+USERNAME = groupmatchstr4
+PASSWORD = groupmatchstr5
+ENABLEPW = groupmatchstr6
+
+getdir CurDir
+
+;; build command
+COMMAND = HOSTADDR 
+strconcat COMMAND ':23 /nossh /T=1'
+strconcat COMMAND ' /F='
+strconcat COMMAND CurDir
+strconcat COMMAND '\'
+strconcat COMMAND TTINI
+ 
+;; connect
+connect COMMAND
+ 
+;; Login
+wait 'login:' 'Username:' 
+sendln USERNAME 
+sendln PASSWORD
+sendln 'enable'
+sendln ENABLEPW
+
+wait '#'
+
+call Logging
+
+sendln ''
+sendln 'show clock'
+sendln ''
+
+end
+
+;---------------------------------------------------------------
+;---------------------------------------------------------------
+:Logging
+
+Logfile = CurDir
+strconcat Logfile '\log\'
+strconcat Logfile HOSTNAME
+getdate Logdatetime '_%Y%m%d-%H%M%S'
+strconcat Logfile Logdatetime
+strconcat Logfile '.log'
+
+logopen Logfile 0 1 0
+
+return
+;---------------------------------------------------------------
